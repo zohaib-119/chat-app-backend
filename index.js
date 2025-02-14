@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require('cors');
 
 const connectDB = require("./lib/db");
-const userRoutes = require("./routes/user.router");
+const userRoutes = require("./routes/user.route");
 
 const app = express();
 
