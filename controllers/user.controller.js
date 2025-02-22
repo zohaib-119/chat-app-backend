@@ -5,13 +5,31 @@ const jwt = require("jsonwebtoken");
 const signup = async (req, res) => {
     try {
         const { name, email, password } = req.body;
-        const existingUser = await User.findOne({ email });
-        if (existingUser) return res.status(400).json({ success: false, message: "User already exists" });
+        
+        // Validate name format
+        const nameRegex = /^[a-zA-Z0-9_.]+$/;
+        if (!nameRegex.test(name)) {
+            return res.status(400).json({ success: false, message: "Name can only contain alphanumeric characters, underscores, or dots" });
+        }
 
+        // Check if name is unique
+        const existingUserByName = await User.findOne({ name });
+        if (existingUserByName) {
+            return res.status(400).json({ success: false, message: "Username is already taken" });
+        }
+
+        // Check if email is unique
+        const existingUserByEmail = await User.findOne({ email });
+        if (existingUserByEmail) {
+            return res.status(400).json({ success: false, message: "User already exists" });
+        }
+
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = new User({ name, email, password: hashedPassword });
         await newUser.save();
 
+        // Generate JWT token
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
         res.cookie("jwt", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
@@ -55,8 +73,8 @@ const logout = (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { name, profile_pic } = req.body;
-        const updatedUser = await User.findByIdAndUpdate(userId, { name, profile_pic }, { new: true });
+        const { profile_pic } = req.body;
+        const updatedUser = await User.findByIdAndUpdate(userId, { profile_pic }, { new: true });
 
         if (!updatedUser) return res.status(404).json({ success: false, message: "User not found" });
 
