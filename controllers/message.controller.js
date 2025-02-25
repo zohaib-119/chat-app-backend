@@ -1,71 +1,23 @@
 const Message = require("../models/message.model");
+const { getReceiverSocketId } = require("../lib/socket");
 
 // Add a new message
 const addMessage = async (req, res) => {
     try {
         const { receiver_id, text } = req.body;
-        const sender_id = req.user._id; // Assuming user is authenticated
+        const sender_id = req.user._id;
 
         const message = new Message({ sender_id, receiver_id, text });
         await message.save();
 
-        // TODO: Implement socket event to notify receiver
+        const receiverSocketId = getReceiverSocketId(receiver_id);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("newMessage", message);
+        }
 
         res.status(201).json({ success: true, message: "Message is sent successfully", data: message });
     } catch (error) {
         console.log("Error in add message controller: ", error.message);
-        res.status(500).json({ success: false, message: "Internal server error" });
-    }
-};
-
-// Delete a message
-const deleteMessage = async (req, res) => {
-    try {
-        const { messageId } = req.params;
-        const message = await Message.findById(messageId);
-
-        if (!message) {
-            return res.status(404).json({ success: false, message: "Message not found" });
-        }
-
-        if (message.sender_id.toString() !== req.user._id) {
-            return res.status(403).json({ success: false, message: "Unauthorized action" });
-        }
-
-        await Message.findByIdAndDelete(messageId);
-        res.status(200).json({ success: true, message: "Message deleted successfully" });
-
-        // TODO: Implement socket event to notify receiver about message deletion
-
-    } catch (error) {
-        console.log("Error in delete message controller: ", error.message);
-        res.status(500).json({ success: false, message: "Internal server error" });
-    }
-};
-
-// Edit a message
-const editMessage = async (req, res) => {
-    try {
-        const { messageId } = req.params;
-        const { text } = req.body;
-        const message = await Message.findById(messageId);
-
-        if (!message) {
-            return res.status(404).json({ success: false, message: "Message not found" });
-        }
-
-        if (message.sender_id.toString() !== req.user.id) {
-            return res.status(403).json({ success: false, message: "Unauthorized action" });
-        }
-
-        message.text = text;
-        await message.save();
-        res.status(200).json({ success: true, message: "Message is updated successfully", data: message});
-
-        // TODO: Implement socket event to update message in real-time
-
-    } catch (error) {
-        console.log("Error in edit message controller: ", error.message);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
@@ -80,8 +32,8 @@ const getMessages = async (req, res) => {
 
         const messages = await Message.find({
             $or: [
-                { sender_id: req.user.id, receiver_id: chatUserId },
-                { sender_id: chatUserId, receiver_id: req.user.id }
+                { sender_id: req.user._id, receiver_id: chatUserId },
+                { sender_id: chatUserId, receiver_id: req.user_.id }
             ]
         })
             .sort({ createdAt: -1 })
@@ -94,4 +46,28 @@ const getMessages = async (req, res) => {
     }
 };
 
-module.exports = { addMessage, deleteMessage, editMessage, getMessages };
+// Mark all unseen messages as seen for a specific chat
+const markMessagesAsSeen = async (req, res) => {
+    try {
+        const { chatUserId } = req.params;
+        const userId = req.user._id;
+
+        // Update all unseen messages where logged-in user is the receiver
+        const updatedMessages = await Message.updateMany(
+            { sender_id: chatUserId, receiver_id: userId, is_seen: false },
+            { $set: { is_seen: true } }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Messages marked as seen",
+            modifiedCount: updatedMessages.modifiedCount
+        });
+
+    } catch (error) {
+        console.error("Error in markMessagesAsSeen:", error);
+        res.status(500).json({ success: false, message: "Failed to mark messages as seen", error });
+    }
+};
+
+module.exports = { addMessage, getMessages, markMessagesAsSeen };

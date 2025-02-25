@@ -1,97 +1,51 @@
 const User = require("../models/user.model");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const Message = require("../models/message.model");
 
-const signup = async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-        
-        // Validate name format
-        const nameRegex = /^[a-zA-Z0-9_.]+$/;
-        if (!nameRegex.test(name)) {
-            return res.status(400).json({ success: false, message: "Name can only contain alphanumeric characters, underscores, or dots" });
-        }
-
-        // Check if name is unique
-        const existingUserByName = await User.findOne({ name });
-        if (existingUserByName) {
-            return res.status(400).json({ success: false, message: "Username is already taken" });
-        }
-
-        // Check if email is unique
-        const existingUserByEmail = await User.findOne({ email });
-        if (existingUserByEmail) {
-            return res.status(400).json({ success: false, message: "User already exists" });
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ name, email, password: hashedPassword });
-        await newUser.save();
-
-        // Generate JWT token
-        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie("jwt", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-        res.status(201).json({ success: true, message: "User created successfully", user: { _id: newUser._id, name: newUser.name, email: newUser.email, profile_pic: newUser.profile_pic } });
-    } catch (error) {
-        console.log("Error in signup: ", error.message);
-        res.status(500).json({ success: false, message: "Internal server error" });
-    }
-};
-
-const login = async (req, res) => {
-    try {
-        console.log('request hit')
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ success: false, message: "Invalid credentials" });
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ success: false, message: "Invalid credentials" });
-
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie("jwt", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-        res.status(200).json({ success: true, message: "Login successful", user: { _id: user._id, name: user.name, email: user.email, profile_pic: user.profile_pic } });
-    } catch (error) {
-        console.log("Error in login: ", error.message);
-        res.status(500).json({ success: false, message: "Internal server error" });
-    }
-};
-
-const logout = (req, res) => {
-    try {
-        res.clearCookie("token");
-        res.json({ success: true, message: "Logged out successfully" });
-    } catch (error) {
-        console.log("Error in logout: ", error.message);
-        res.status(500).json({ success: false, message: "Internal server error" });
-    }
-};
-
-const updateProfile = async (req, res) => {
+const getChatUsers = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { profile_pic } = req.body;
-        const updatedUser = await User.findByIdAndUpdate(userId, { profile_pic }, { new: true });
 
-        if (!updatedUser) return res.status(404).json({ success: false, message: "User not found" });
+        // Get all the users with whom the logged in user has chatted
+        const chatUsers = await Message.aggregate([
+            {
+                $match: { 
+                    $or: [{ sender_id: userId }, { receiver_id: userId }] 
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    uniqueUsers: { 
+                        $addToSet: "$sender_id" 
+                    },
+                    uniqueReceivers: { 
+                        $addToSet: "$receiver_id" 
+                    }
+                }
+            },
+            {
+                $project: {
+                    allUsers: { 
+                        $setUnion: ["$uniqueUsers", "$uniqueReceivers"] 
+                    }
+                }
+            }
+        ]);
 
-        res.json({ success: true, message: "Profile updated successfully", data: { _id: updatedUser._id, name: updatedUser.name, email: updatedUser.email, profile_pic: updatedUser.profile_pic } });
-    } catch (error) {
-        console.log("Error in updateProfile: ", error.message);
-        res.status(500).json({ success: false, message: "Internal server error" });
-    }
-};
+        // Extract user IDs and filter out the logged-in user
+        const userIds = chatUsers.length ? chatUsers[0].allUsers.filter(id => id.toString() !== userId.toString()) : [];
 
-const checkAuth = (req, res) => {
-    try {
-        res.status(200).json({success: true, message: 'User is authenticated', data: req.user});
+        // Fetch user details
+        const users = await User.find({ _id: { $in: userIds } }).select("_id username profile_pic");
+
+        // Find user IDs with unseen messages
+        const unseenChats = await Message.distinct("sender_id", { receiver_id: userId, is_seen: false });
+
+        res.status(200).json({ success: true, message: 'Chats fetched successfully', chatUsers: users, unseenChats, currentChats: userIds });
     } catch (error) {
         console.log("Error in checkAuth: ", error.message);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
-}
+};
 
-module.exports = { signup, login, logout, updateProfile, checkAuth };
+module.exports = { getChatUsers };
