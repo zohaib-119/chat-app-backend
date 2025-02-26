@@ -4,7 +4,7 @@ const authMiddleware = require("../middlewares/auth.middleware");
 
 const router = express.Router();
 
-router.get("/add-message", authMiddleware, addMessage);
-router.put("/messages/:chatUserId", authMiddleware, getMessages);
+router.post("/add-message", authMiddleware, addMessage);
+router.get("/messages/:chatUserId", authMiddleware, getMessages);
 
 module.exports = router;

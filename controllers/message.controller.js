@@ -1,5 +1,6 @@
 const Message = require("../models/message.model");
-const { getReceiverSocketId } = require("../lib/socket");
+const User = require("../models/user.model");
+const { getReceiverSocketId, io } = require("../lib/socket");
 
 // Add a new message
 const addMessage = async (req, res) => {
@@ -15,7 +16,7 @@ const addMessage = async (req, res) => {
             io.to(receiverSocketId).emit("newMessage", message);
         }
 
-        res.status(201).json({ success: true, message: "Message is sent successfully", data: message });
+        res.status(201).json({ success: true, message: "Message is sent successfully", chatMessage: message });
     } catch (error) {
         console.log("Error in add message controller: ", error.message);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -26,23 +27,29 @@ const addMessage = async (req, res) => {
 const getMessages = async (req, res) => {
     try {
         const { chatUserId } = req.params;
-        const { page = 1 } = req.query;
-        const limit = 15;
-        const skip = (page - 1) * limit;
+        // const { page = 1 } = req.query;
+        // const limit = 15;
+        // const skip = (page - 1) * limit;
+        const user = await User.findById(chatUserId).select("-password");
+
+        if (!user) {
+            res.status(401).json({ success: false, message: "Invalid userId" });
+        }
 
         const messages = await Message.find({
             $or: [
                 { sender_id: req.user._id, receiver_id: chatUserId },
-                { sender_id: chatUserId, receiver_id: req.user_.id }
+                { sender_id: chatUserId, receiver_id: req.user._id }
             ]
         })
             .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
+        // .skip(skip)
+        // .limit(limit);
 
-        res.status(200).json({ success: true, message: "Messages are fetched successfully", data: messages });
+        res.status(200).json({ success: true, message: "Messages are fetched successfully", chatMessages: messages, chatUser: user });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Failed to fetch messages", error });
+        console.error("Error in getMessages:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch messages" });
     }
 };
 
@@ -66,7 +73,7 @@ const markMessagesAsSeen = async (req, res) => {
 
     } catch (error) {
         console.error("Error in markMessagesAsSeen:", error);
-        res.status(500).json({ success: false, message: "Failed to mark messages as seen", error });
+        res.status(500).json({ success: false, message: "Failed to mark messages as seen" });
     }
 };
 
