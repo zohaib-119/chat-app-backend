@@ -61,7 +61,12 @@ const login = async (req, res) => {
 
 const logout = (req, res) => {
     try {
-        res.clearCookie("token");
+        console.log("Cookies before logout:", JSON.stringify(req.cookies));
+        res.clearCookie("jwt", { 
+            httpOnly: true, 
+            secure: process.env.NODE_ENV === 'production', 
+            sameSite: "strict" 
+        });
         res.json({ success: true, message: "Logged out successfully" });
     } catch (error) {
         console.log("Error in logout: ", error.message);
@@ -77,7 +82,7 @@ const updateProfile = async (req, res) => {
 
         if (!updatedUser) return res.status(404).json({ success: false, message: "User not found" });
 
-        res.json({ success: true, message: "Profile updated successfully", data: { _id: updatedUser._id, username: updatedUser.username, email: updatedUser.email, profile_pic: updatedUser.profile_pic } });
+        res.json({ success: true, message: "Profile updated successfully", user: { _id: updatedUser._id, username: updatedUser.username, email: updatedUser.email, profile_pic: updatedUser.profile_pic } });
     } catch (error) {
         console.log("Error in updateProfile: ", error.message);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -86,7 +91,8 @@ const updateProfile = async (req, res) => {
 
 const checkAuth = (req, res) => {
     try {
-        res.status(200).json({success: true, message: 'User is authenticated', data: req.user});
+        console.log("Cookies before checkauth:", JSON.stringify(req.cookies));
+        res.status(200).json({success: true, message: 'User is authenticated', user: req.user});
     } catch (error) {
         console.log("Error in checkAuth: ", error.message);
         res.status(500).json({ success: false, message: "Internal server error" });
