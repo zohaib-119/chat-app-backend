@@ -42,7 +42,7 @@ const getMessages = async (req, res) => {
                 { sender_id: chatUserId, receiver_id: req.user._id }
             ]
         })
-            .sort({ createdAt: -1 })
+            .sort({ createdAt: 1 })
         // .skip(skip)
         // .limit(limit);
 
