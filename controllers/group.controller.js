@@ -1,13 +1,12 @@
 const Group = require("../models/group.model");
-const User = require("../models/user.model");
 
 const createGroup = async (req, res) => {
     try {
+        console.log('group create hit')
         const { name, profile_pic, members } = req.body;
         const creator_id = req.user._id;
 
-        // Ensure creator is included in the members array (deduplication)
-        const allMembers = Array.from(new Set([creator_id, ...(members || [])]));
+        const allMembers = Array.from(new Set([creator_id, ...((members && Array.isArray(members)) ? members : [])]));
 
         const newGroup = new Group({
             creator_id,
