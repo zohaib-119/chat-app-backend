@@ -2,7 +2,6 @@ const Group = require("../models/group.model");
 const GroupMessage = require("../models/groupMessage.model");
 const { getReceiverSocketId, io } = require("../lib/socket");
 
-
 // GET group messages + group info
 const getGroupMessages = async (req, res) => {
     console.log('getGroupMessages hit')
@@ -51,6 +50,7 @@ const getGroupMessages = async (req, res) => {
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
+
 const addGroupMessage = async (req, res) => {
     console.log('addGroupMessage hit');
     try {
