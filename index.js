@@ -11,8 +11,10 @@ const groupMessageRoutes = require("./routes/groupMessage.route");
 
 const {app, server} = require('./lib/socket');
 
+require('dotenv').config();
+
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: process.env.FRONTEND_URL,
     credentials: true 
 }));
 
@@ -26,7 +28,7 @@ app.use("/api/message", messageRoutes);
 app.use("/api/group", groupRoutes);
 app.use("/api/group-message", groupMessageRoutes);
 
-server.listen(5000, () => {
-    console.log("Server running on port 5000")
+server.listen(process.env.PORT, () => {
+    console.log("Server running on port ", process.env.PORT)
     connectDB();
 });
