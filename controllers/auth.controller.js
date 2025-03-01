@@ -31,9 +31,9 @@ const signup = async (req, res) => {
 
         // Generate JWT token
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie("jwt", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: "None", maxAge: 7 * 24 * 60 * 60 * 1000 });
+        // res.cookie("jwt", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: "None", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-        res.status(201).json({ success: true, message: "User created successfully", user: { _id: newUser._id, username: newUser.username, email: newUser.email, profile_pic: newUser.profile_pic } });
+        res.status(201).json({ success: true, message: "User created successfully", user: { _id: newUser._id, username: newUser.username, email: newUser.email, profile_pic: newUser.profile_pic }, token });
     } catch (error) {
         console.log("Error in signup: ", error.message);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -50,9 +50,9 @@ const login = async (req, res) => {
         if (!isMatch) return res.status(400).json({ success: false, message: "Invalid credentials" });
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.cookie("jwt", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: "None", maxAge: 7 * 24 * 60 * 60 * 1000 });
+        // res.cookie("jwt", token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: "None", maxAge: 7 * 24 * 60 * 60 * 1000 });
 
-        res.status(200).json({ success: true, message: "Login successful", user: { _id: user._id, username: user.username, email: user.email, profile_pic: user.profile_pic } });
+        res.status(200).json({ success: true, message: "Login successful", user: { _id: user._id, username: user.username, email: user.email, profile_pic: user.profile_pic }, token });
     } catch (error) {
         console.log("Error in login: ", error.message);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -91,7 +91,6 @@ const updateProfile = async (req, res) => {
 
 const checkAuth = (req, res) => {
     try {
-        console.log("Cookies before checkauth:", JSON.stringify(req.cookies));
         res.status(200).json({success: true, message: 'User is authenticated', user: req.user});
     } catch (error) {
         console.log("Error in checkAuth: ", error.message);

@@ -5,11 +5,20 @@ require('dotenv').config();
 
 const authMiddleware = async (req, res, next) => {
     try {
-        const token = req.cookies.jwt;
+        // const token = req.cookies.jwt;
 
-        if (!token) {
-            return res.status(401).json({ success: false, message: "Unauthorized - No Token Provided" });
+        // if (!token) {
+        //     return res.status(401).json({ success: false, message: "Unauthorized - No Token Provided" });
+        // }
+
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, message: "Unauthorized - No or Invalid Token Provided" });
         }
+
+        const token = authHeader.split(' ')[1]; // Extract token after 'Bearer '
+
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
