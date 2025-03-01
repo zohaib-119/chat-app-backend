@@ -13,7 +13,7 @@ const addMessage = async (req, res) => {
 
         const receiverSocketId = getReceiverSocketId(receiver_id);
         if (receiverSocketId) {
-            io.to(receiverSocketId).emit("newMessage", message);
+            io.to(receiverSocketId).emit("newMessage", {newMessage: message, senderName: req.user.username});
         }
 
         res.status(201).json({ success: true, message: "Message is sent successfully", chatMessage: message });

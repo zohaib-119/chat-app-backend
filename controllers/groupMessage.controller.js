@@ -73,6 +73,7 @@ const addGroupMessage = async (req, res) => {
             group_id: groupId,
             sender_id: userId,
             text,
+            read_by: [userId]
         });
 
         await newMessage.save();
@@ -91,7 +92,8 @@ const addGroupMessage = async (req, res) => {
                 createdAt: populatedMessage.createdAt,
                 sender: populatedMessage.sender_id
             },
-            groupId
+            groupId,
+            groupName: group.name
         };
 
         // 5. Loop through all group members and emit message to online users
@@ -115,8 +117,36 @@ const addGroupMessage = async (req, res) => {
     }
 };
 
+const markGroupMessagesAsSeen = async (req, res) => {
+    const { groupId } = req.params;  
+    const userId = req.user._id; 
+
+    try {
+        await GroupMessage.updateMany(
+            { 
+                group_id: groupId,
+                read_by: { $ne: userId } 
+            },
+            { 
+                $addToSet: { read_by: userId } 
+            }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'All group messages marked as seen'
+        });
+    } catch (error) {
+        console.error("Error in markGroupMessagesAsSeen controller: ", error.message);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
 
 module.exports = {
     getGroupMessages,
-    addGroupMessage
+    addGroupMessage,
+    markGroupMessagesAsSeen
 };
